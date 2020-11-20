@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta name="robots" content="noindex">
+  <title>Outage Lifecycle KPI</title>
+
+<!--place cdn scripts js here (start)-->
+  <script
+  src="https://code.jquery.com/jquery-2.2.4.min.js"
+  integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44="
+  crossorigin="anonymous"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+<link href="https://unpkg.com/tabulator-tables@4.8.4/dist/css/tabulator.min.css" rel="stylesheet">
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@4.8.4/dist/js/tabulator.min.js"></script>
+<script type="text/javascript" src="https://oss.sheetjs.com/sheetjs/xlsx.full.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+<!--place cdn scripts js here (end)-->
+
+<!--place style here (Start)-->
+
+  <style>
+ .button {
+  background-color: #9c9ba1;
+  border: none;
+  color: white;
+  padding: 10px 22px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 14px;
+  margin: 4px 2px;
+  cursor: pointer;
+  -webkit-transition-duration: 0.4s; /* Safari */
+  transition-duration: 0.4s;
+}
+.button1:hover {
+  background-color: #4cafa4;
+  box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24),0 17px 50px 0 rgba(0,0,0,0.19);
+}
+.button2:hover {
+  background-color: #4cafa4;
+  box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24),0 17px 50px 0 rgba(0,0,0,0.19);
+}
+.button3:hover {
+  background-color: #4cafa4;
+  box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24),0 17px 50px 0 rgba(0,0,0,0.19);
+}
+
+
+  </style>
+<!--plcae style here (End)-->
+
+</head>
+
+<!--place body here (Start)-->
+<body>
+<div style="text-align:center">
+<iframe id="invisible" name="invisible" style="display:none;"></iframe>
+<span class="heading1" id="header"><b>tabulatorview</b></span><br>
+<h3></h3>
+<form target="invisible" action="http://127.0.0.1:5000/getoutage" style="margin:10px;" method="post">
+ <span class="label success" id="select_d">Select custom period</span>
+ 
+<input type="text" name="daterange" value="" />
+<!-- <input type="submit" name="submit" id="btn" value="Submit"> -->
+</form>
+<!---- Table html here -start-->
+<div style="display:flex">
+
+    <button class="button button1" id="download-xlsx">Download</button>
+    <button class="button button2" id="history-undo">Undo Edit</button>
+    <button class="button button3" id="history-redo">Redo Edit</button>
+</div> 
+<div id="example-table"></div>
+
+
+<!---- Table html here -end-->
+<script>
+$(function() {
+  $('input[name="daterange"]').daterangepicker({
+    opens: 'left'
+  }, function(start, end, label) {
+    console.log("A new date selection was made: " + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD'));
+    let sd = start.format('YYYY-MM-DD') + " 00:00"
+    let ed = end.format('YYYY-MM-DD') + " 23:59"
+    console.log(sd)
+    console.log(ed)
+    let params = {};
+    params.start = sd;
+    params.end = ed;
+    let data =[]
+    $.post('http://127.0.0.1:5000/getoutage', params).done(function (data) {
+    data=JSON.parse(data)
+    var diffMutator = function(value, data){
+      var start = moment(data.CE_informed_at, 'MM/DD/YYYY HH:mm')
+      var end = moment(data.TimeFinish, 'MM/DD/YYYY HH:mm')
+      var new_value = end.diff(start, 'minutes');
+      if (type == "edit"){
+      console.log('edit');
+      component.getRow().getCell("First_expert_contacted_by_CE").setValue(new_value);
+      return value; //return the new value for the cell data.
+      }else{
+      return new_value
+      }}
+    // callback
+    let url = 'http://127.0.0.1:5000/getoutage'
+     table = new Tabulator("#example-table", {
+      layout:"fitData", //fit columns to width of table (optional)
+      history:true,
+      placeholder:"No Data Available",
+    columns:[ //Define Table Columns
+    {formatter:"buttonCross", width:40, frozen:true, align:"center", cellClick:function(e, cell){
+    cell.getRow().delete();
+      }},
+      {title:"OUTAGE ticket reference", field:"Outage_id"},
+      {title:"CW", field:"cw"},
+      {title:"[Q] Date[Month]", field:"date_month"},
+      {title:"Incident Start Date + Time (UTC) - First alert received (AvS, SPC)", field:"incident_start"},
+      {title:"[Q] Landscape", field:"landscape"},
+      {title:"[Q] Platform Tech", field:"platform_stack",editor:"select",editorParams:{values:["cf-aws", "neo-gmp","cf-azure", "k8s","cf-gcp", "cf-alicloud"]}},
+      {title:"Causing Service", field:"causing_service",editor: "input" },
+      {title:"Affected Service", field:"affected_service",editor: "input" },
+      {title:"[Q] HV Issue [Y/N]", field:"Hypv_issue",editor:"select",editorParams:{values:["Yes", "No"]}},
+      {title:"Location", field:"location", editor:"select",editorParams:{values:["BLR","SOF","VCR"]}},
+      {title:"Short Description", field:"Description"},
+      {title:"CE informed by", field:"CE_informed_by", editor:"select",editorParams:{values:["Slack", "GCS", "None","L1","Others"]}},
+      {title:"[Q] Bridge Call", field:"Bridge_call",editor:"select",editorParams:{values:["Yes", "No"]}},
+      {title:"Bridge call started by (e.g. CE)", field:"Bridge_call started_by",
+      editor:"select",editorParams:{values:["CE","None","Others"]}},
+      {title:"CE involved", field:"CE_involved",editor:"select",editorParams:{values:["Yes","None"]}},
+      {title:"Outage Ticket created by (e.g. CE)", field:"Outage_ticket_created_by",editor:"select",editorParams:{values:["CE", "None"]}},
+      {title:"CE informed at (Date + Time UTC)", field:"CE_informed_at",sorter: "datetime",sorterParams:{format:"DD/MM/YYYY HH:mm"},editor:"input",mutatorEdit:diffMutator},
+      {title:"Bridge call started at (MoD & more informed)(Date + Time UTC)", field:"Bridge_call_started_at",sorter: "datetime",sorterParams:{format:"DD/MM/YYYY HH:mm"},editor:"input",mutatorEdit:diffMutator},
+      {title:"First expert contacted by CE at (Date + Time UTC)", field:"First_expert_contacted_by_CE",mutator: diffMutator},
+      {title:"Right expert found at (Date + Time UTC)", field:"Right_expert_found_at"},
+      {title:"Right expert solved the issue (service recovered) at (Date + Time UTC)", field:"Right_expert_solved_issue_service_recovered_at"},
+      {title:"Bridge Call closed at (Date + Time UTC)", field:"Bridge_call_closed_at"},
+      {title:"CE informed (Minutes)", field:"CE_informed_calc",visible:false,download:true},
+      {title:"Started the bridge call (MoD & more informed) (Minutes)", field:"Started_bridge_call_calc"},
+      {title:"Time to contact the First expert by CE(Minutes)", field:"time_to_contact_first_exp_calc"},
+      {title:"Time to find the right expert(Minutes)", field:"Time_to_find_right_exp_calc"},
+      {title:"Time Diffrence between F.E & R.E", field:"time_diff_FE_RE"},
+      {title:"Time for expert to solve the issue (Minutes)", field:"Time_for_exp_issue_resolution"},
+      {title:"[Q] Bridge Call Duration [min]", field:"Bridge_call_duration"},
+      {title:"End time of incident (Date + Time UTC)", field:"Inc_end_time"},
+      {title:"Time to Repair (Minutes)", field:"TTR"},
+      {title:"First slack A announcement notification at ( Date + Time UTC)", field:"First_A_inslack"},
+      {title:"Customer announcement “identified” (Initial Customer Announcement)(Date / Time UTC)", field:"First_Cust_announce_time"},
+      {title:"Customer announcement “restored” (Date / Time UTC)", field:"resolved_cust_ann_time"},
+      {title:"Communicated start time", field:"communicated_start_time"},
+      {title:"Communicated end time", field:"communicated_end_time"},
+      {title:"Customer announcement “identified” (Initial Customer Announcement)(Minutes)", field:"cust_ann_identified_calc"},
+      {title:"Customer announcement “restored” (Minutes)", field:"cust_ann_restored_calc"},
+      {title:"Senior Management / Board informed (Disruption) (Date / Time UTC)", field:"Snrmgmt_board_informed_at"},
+      {title:"Senior Management / Board informed (Disruption) (Minutes)", field:"Snrmgmt_board_informed_calc"},
+      {title:"Senior Management / Board resolved (Disruption) (Minutes)", field:"Snrmgmt_board_resolved_calc"},
+      {title:"GCS PR ID", field:"GCS_PR_id"},
+      {title:"Reporter", field:"Reporter"},
+      {title:"Involved SE Team?", field:"Involved_se_team",editor:"select",editorParams:{values:["Yes", "No"]}},
+      {title:"CE informed (KPI)", field:"CE_informedKPI"},
+      {title:"Started the bridge call (MoD & more informed) (KPI)", field:"StartedBridecall_KPI"},
+      {title:"Customer announcement (identified) (Initial Customer Announcement) (KPI)", field:"Customer_ann_KPI"},
+      {title:"Remarks", field:"remarks"}
+
+      //{title:"incident_start", field:"incident_start"},
+      //{title:"landscape", field:"landscape", editor:"select", editorParams:{values:["male", "female"]}}
+    ],
+    data:data,
+});
+     //document.getElementById("post-data").addEventListener("click", function(){
+        //console.log(data);//ajax call
+     //});
+     document.getElementById("download-xlsx").addEventListener("click", function(){
+     table.download("xlsx", "data.xlsx", {sheetName:"OUTAGE KPI"});
+ });
+     //undo button
+$("#history-undo").on("click", function(){
+  table.undo();
+});
+
+//redo button
+$("#history-redo").on("click", function(){
+   table.redo();
+});
+});
+  });
+});
+
+</script>
+
+
+</body>
+<!--place body here js here (End)-->
+</html>
