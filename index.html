@@ -84,7 +84,7 @@
 <script> 
     var diffMutator = function(value, data){     //placed outside function
       var start = moment(data.CE_informed_at, 'MM/DD/YYYY HH:mm')
-      var end = moment(data.TimeFinish, 'MM/DD/YYYY HH:mm')
+      var end = moment(data.Bridge_call_started_at, 'MM/DD/YYYY HH:mm')
       var new_value = end.diff(start, 'minutes');
       if (type == "edit"){          //here it gives error
       console.log('edit');
